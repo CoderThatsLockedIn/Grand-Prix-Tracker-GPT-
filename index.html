@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GPT — Grand Prix Tracker</title>
+<style>
+:root{
+  --bg-a:#23003a;
+  --bg-b:#5e1bd6;
+  --muted: rgba(255,255,255,0.78);
+  --white: #ffffff;
+  --backdrop: rgba(0,0,0,0.35);
+  --container-max: 1200px;
+}
+
+/* Base */
+html,body{ height:100%; margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:var(--white); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+body{
+  background:
+    radial-gradient(800px 400px at 10% 10%, rgba(255,255,255,0.02), transparent),
+    linear-gradient(180deg,var(--bg-a),var(--bg-b));
+  padding:24px;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
+
+/* Layout */
+.container{ width:100%; max-width:var(--container-max); margin:0 auto; }
+header{ display:flex; gap:16px; align-items:center; padding:14px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border-radius:12px; box-shadow: 0 12px 40px var(--backdrop); }
+.logo{ width:96px; height:96px; object-fit:contain; border-radius:12px; background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); padding:10px; }
+.title{ display:flex; flex-direction:column; }
+.title h1{ margin:0; font-size:20px; letter-spacing:0.6px;}
+.title p{ margin:0; color:var(--muted); font-size:13px; }
+
+.main-card{ margin-top:18px; display:flex; gap:20px; align-items:flex-start; }
+
+/* Left (race + podium) */
+.left{ flex:1 1 560px; min-width:300px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015)); padding:18px; border-radius:12px; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
+
+.race-header{ display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+.race-flag{ width:36px; height:24px; object-fit:cover; border-radius:4px; box-shadow: 0 6px 18px rgba(0,0,0,0.35); display:none; }
+.race-title strong{ font-size:13px; text-transform:uppercase; letter-spacing:0.9px; display:block; }
+.race-title small{ color:var(--muted); font-size:12px; }
+
+/* Podium */
+.podium-wrap{ margin-top:12px; display:flex; justify-content:center; align-items:flex-end; gap:18px; padding:10px 6px; }
+.step{ width:128px; border-radius:12px 12px 8px 8px; color:var(--white); box-shadow: 0 18px 30px rgba(0,0,0,0.45); display:flex; flex-direction:column; align-items:center; padding:12px; padding-right:26px; transition:transform .28s cubic-bezier(.2,.9,.2,1), box-shadow .28s; position:relative; overflow:visible; }
+.step:hover{ transform: translateY(-6px); box-shadow: 0 26px 44px rgba(0,0,0,0.5); }
+
+/* Note: images (driver photos / team badges) were removed per request */
+
+/* Podium heights */
+.first{ min-height:260px; width:150px; transform:translateY(-18px); padding-bottom:50px; }
+.second{ min-height:220px; padding-bottom:40px; }
+.third{ min-height:210px; padding-bottom:40px; }
+
+/* Text */
+.pos{ font-size:14px; font-weight:700; opacity:0.95; letter-spacing:0.8px; margin-bottom:8px; }
+.driver{ font-size:16px; font-weight:800; text-shadow: 0 2px 8px rgba(0,0,0,0.26); text-align:center; }
+.team{ font-size:12px; opacity:0.92; margin-top:6px; color: rgba(255,255,255,0.92); }
+
+/* Right column (standings) */
+.right{ width:420px; max-width:44%; min-width:260px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:16px; border-radius:12px; box-shadow: 0 12px 30px rgba(0,0,0,0.45); display:flex; flex-direction:column; }
+.standings-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.standings-header h3{ margin:0; font-size:15px; }
+.standings-header .muted{ color:var(--muted); font-size:13px; }
+
+.table-wrap{ overflow:auto; border-radius:10px; background: white; color:#111; }
+table{ width:100%; border-collapse:collapse; min-width:640px; }
+thead th{ text-align:left; padding:12px 14px; background: linear-gradient(90deg, #f7f5ff, #f1efff); color:#1c1c1c; font-weight:700; font-size:13px; }
+tbody td{ padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:13px; }
+tbody tr:nth-child(even) td{ background: rgba(0,0,0,0.01); }
+
+.flag-inline{ display:inline-flex; gap:8px; align-items:center; }
+.flag-inline img{ width:20px; height:14px; object-fit:cover; border-radius:3px; }
+
+.controls{ margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.btn{ background:transparent; color:var(--white); border:1px solid rgba(255,255,255,0.12); padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+.note{ color:var(--muted); font-size:13px; margin-top:10px; }
+
+@media (max-width:980px){
+  .main-card{ flex-direction:column-reverse; gap:14px; }
+  .right{ width:100%; max-width:100%; }
+  .left{ width:100%; }
+  .step{ width:46%; }
+  .podium-wrap{ gap:10px; justify-content:space-around; }
+  .first{ width:52%; }
+  .table-wrap{ min-width:unset; }
+}
+@media (max-width:560px){
+  header{ flex-direction:row; gap:12px; align-items:center; padding:12px; }
+  .logo{ width:72px; height:72px; }
+  .podium-wrap{ flex-direction:column; align-items:center; gap:12px; padding:6px; }
+  .step{ width:88%; transform:none !important; }
+  .first{ transform:none; width:92%; }
+  .second, .third{ width:92%; }
+  .left, .right{ padding:12px; }
+  thead th{ font-size:12px; }
+  tbody td{ font-size:12px; padding:10px; }
+}
+
+/* Entrance animation */
+.animate-in{ animation: fadeUp .6s cubic-bezier(.2,.9,.2,1) both; }
+@keyframes fadeUp { from{ opacity:0; transform: translateY(10px)} to{ opacity:1; transform: translateY(0)} }
+</style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="animate-in">
+      <img src="gpt.png" alt="GPT Logo" class="logo" onerror="this.style.display='none'"/>
+      <div class="title">
+        <h1>GPT — Grand Prix Tracker</h1>
+        <p class="muted">Podiums • Race results • World Drivers' Championship</p>
+      </div>
+    </header>
+
+    <div class="main-card">
+      <section class="left animate-in" aria-labelledby="race-title">
+        <div class="race-header">
+          <img id="raceFlag" class="race-flag" src="" alt="">
+          <div class="race-title">
+            <strong id="raceTitle">Loading latest race...</strong>
+            <small id="raceDate"></small>
+          </div>
+        </div>
+
+        <div class="podium-wrap" id="podiumWrap" aria-live="polite" role="region">
+
+          <!-- SECOND -->
+          <div class="step second" id="step2">
+            <div class="pos">2nd</div>
+            <div class="driver" id="driver2">—</div>
+            <div class="team" id="team2">—</div>
+          </div>
+
+          <!-- FIRST -->
+          <div class="step first" id="step1">
+            <div class="pos">1st</div>
+            <div class="driver" id="driver1">—</div>
+            <div class="team" id="team1">—</div>
+          </div>
+
+          <!-- THIRD -->
+          <div class="step third" id="step3">
+            <div class="pos">3rd</div>
+            <div class="driver" id="driver3">—</div>
+            <div class="team" id="team3">—</div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:14px">
+          <button class="btn" id="btnReload">Reload data</button>
+          <div style="flex:1"></div>
+          <div class="note" id="dataNote">Using fallback data until API available.</div>
+        </div>
+      </section>
+
+      <aside class="right animate-in" aria-labelledby="standings-title">
+        <div class="standings-header">
+          <h3 id="standings-title">World Drivers' Championship</h3>
+          <div class="muted">Season: <strong id="seasonLabel">2025</strong></div>
+        </div>
+
+        <div class="table-wrap" id="tableWrap">
+          <table id="standingsTable" role="table" aria-label="Driver standings table">
+            <thead>
+              <tr><th>Driver</th><th>Team</th><th>Points</th><th>Nationality</th></tr>
+            </thead>
+            <tbody id="standingsBody"></tbody>
+          </table>
+        </div>
+
+        <p class="note" style="margin-top:12px;">Data source: Jolpica (fallback local data if unavailable). Styling and responsiveness upgrades do not change your stored data.</p>
+      </aside>
+    </div>
+  </div>
+
+<script>
+/* -----------------------
+   Team color mapping (fixed & expanded)
+   ----------------------- */
+const TEAM_COLORS = {
+  // Ferrari
+  "Scuderia Ferrari": "#ff2800",
+  "Ferrari": "#ff2800",
+
+  // McLaren
+  "McLaren F1 Team": "#ff8700",
+  "McLaren": "#ff8700",
+
+  // Mercedes
+  "Mercedes AMG F1": "#00d2be",
+  "Mercedes": "#00d2be",
+
+  // Red Bull
+  "Oracle Red Bull Racing": "#0600ef",
+  "Red Bull": "#0600ef",
+  "Red Bull Racing": "#0600ef",
+
+  // Alpine
+  "Alpine F1 Team": "#0090ff",
+  "Alpine": "#0090ff",
+
+  // Kick Sauber
+  "Kick Sauber": "#2d9f7a",
+  "Stake F1 Team Kick Sauber": "#2d9f7a",
+
+  // Haas
+  "Haas F1 Team": "#b6babd",
+  "Haas": "#b6babd",
+
+  // RB
+  "Visa Cash App RB": "#2b4562",
+  "RB": "#2b4562",
+
+  // Williams
+  "Williams Racing": "#005aff",
+  "Williams": "#005aff",
+
+  // Aston Martin
+  "Aston Martin": "#006f62",
+  "Aston Martin Aramco F1 Team": "#006f62"
+};
+
+/* -----------------------
+   Country flag mapping
+   ----------------------- */
+const COUNTRY_MAP = {
+  'Netherlands':'nl','Japan':'jp','Australia':'au','United Kingdom':'gb','UK':'gb','Italy':'it',
+  'France':'fr','Argentina':'ar','Germany':'de','Brazil':'br','Monaco':'mc','New Zealand':'nz',
+  'New Zealander':'nz','Spain':'es','Canada':'ca','Thailand':'th','United States':'us'
+};
+
+/* -----------------------
+   Fallback data
+   ----------------------- */
+const FALLBACK = {
+  season: '2025',
+  eventCountry: 'Brazil',
+  eventName: 'SAO PAULO GRAND PRIX 2025',
+  eventDate: '11/9/2025',
+  podium: [
+    {pos:1, driver:'Lewis Hamilton', team:'Scuderia Ferrari', nationality:'United Kingdom'},
+    {pos:2, driver:'Max Verstappen', team:'Oracle Red Bull Racing', nationality:'Netherlands'},
+    {pos:3, driver:'Lando Norris', team:'McLaren F1 Team', nationality:'United Kingdom'}
+  ],
+  standings: [
+    {driver:'Max Verstappen', team:'Oracle Red Bull Racing', points:25, nationality:'Netherlands'},
+    {driver:'Lando Norris', team:'McLaren F1 Team', points:18, nationality:'United Kingdom'},
+    {driver:'George Russell', team:'Mercedes AMG F1', points:15, nationality:'United Kingdom'}
+  ],
+  grid: [
+    {team:'Oracle Red Bull Racing', drivers:['Max Verstappen','Yuki Tsunoda']},
+    {team:'McLaren F1 Team', drivers:['Oscar Piastri','Lando Norris']},
+    {team:'Mercedes AMG F1', drivers:['Kimi Antonelli','George Russell']},
+    {team:'Alpine F1 Team', drivers:['Pierre Gasly','Franco Colapinto']},
+    {team:'Kick Sauber', drivers:['Nico Hülkenberg','Gabriel Bortoleto']},
+    {team:'Scuderia Ferrari', drivers:['Lewis Hamilton','Charles Leclerc']},
+    {team:'Haas F1 Team', drivers:['Esteban Ocon','Oliver Bearman']},
+    {team:'Visa Cash App RB', drivers:['Isack Hadjar','Liam Lawson']},
+    {team:'Williams Racing', drivers:['Carlos Sainz Jr.','Alex Albon']},
+    {team:'Aston Martin', drivers:['Fernando Alonso','Lance Stroll']}
+  ]
+};
+
+/* -----------------------
+   Storage helpers
+   ----------------------- */
+const STORAGE_KEY = 'gpt_gptracker_state';
+function loadState(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||{} }catch(e){return{}} }
+function saveState(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+/* Ensure full grid and seed points */
+function seedFullStandings(existingStandings, grid){
+  const map = {};
+  (existingStandings||[]).forEach(r=>map[r.driver]=r);
+  const rows = [];
+  grid.forEach(teamObj=>{
+    teamObj.drivers.forEach(name=>{
+      if(map[name]) rows.push(map[name]);
+      else rows.push({ driver:name, team: teamObj.team, points:0, nationality: 'Unknown' });
+    });
+  });
+  return rows;
+}
+
+/* DOM refs */
+const refs = {
+  raceTitle: document.getElementById('raceTitle'),
+  raceDate: document.getElementById('raceDate'),
+  raceFlag: document.getElementById('raceFlag'),
+  step1: document.getElementById('step1'),
+  step2: document.getElementById('step2'),
+  step3: document.getElementById('step3'),
+  driver1: document.getElementById('driver1'),
+  driver2: document.getElementById('driver2'),
+  driver3: document.getElementById('driver3'),
+  team1: document.getElementById('team1'),
+  team2: document.getElementById('team2'),
+  team3: document.getElementById('team3'),
+  standingsBody: document.getElementById('standingsBody'),
+  seasonLabel: document.getElementById('seasonLabel'),
+  dataNote: document.getElementById('dataNote')
+};
+
+/* API config */
+const API = {
+  enabled: true,
+  base: 'https://api.jolpi.ca/ergast/f1',
+  season: '2025',
+  endpoints: {
+    latestResults: (season) => `${API.base}/${season}/last/results.json`,
+    driverStandings: (season) => `${API.base}/${season}/driverStandings.json`
+  }
+};
+
+/* Helpers */
+function flagHTML(countryName){
+  const code = COUNTRY_MAP[countryName];
+  if(code){
+    return `<img src="https://flagcdn.com/${code}.svg" alt="${countryName} flag" width="20" style="height:14px;object-fit:cover;border-radius:3px">`;
+  }
+  return '';
+}
+
+function applyTeamColor(stepEl, teamName){
+  const color = TEAM_COLORS[teamName] || '#2b2b2b';
+
+  // Solid color only
+  stepEl.style.background = color;
+
+  const c = color.replace('#','');
+  const r = parseInt(c.substring(0,2),16);
+  const g = parseInt(c.substring(2,4),16);
+  const b = parseInt(c.substring(4,6),16);
+  const brightness = (r*0.299 + g*0.587 + b*0.114);
+
+  const textColor = brightness > 160 ? '#111' : '#fff';
+
+  stepEl.style.color = textColor;
+  stepEl.querySelector('.pos').style.color = textColor;
+  stepEl.querySelector('.driver').style.color = textColor;
+  stepEl.querySelector('.team').style.color = textColor;
+
+  stepEl.style.border = '1px solid rgba(0,0,0,0.15)';
+}
+
+function renderRaceHeader(race){
+  refs.raceTitle.textContent = (race.eventName || race.raceName || 'Race').toUpperCase();
+  refs.raceDate.textContent = race.eventDate || race.date || '';
+  if((race.eventCountry && COUNTRY_MAP[race.eventCountry]) || (race.country && COUNTRY_MAP[race.country])){
+    const code = COUNTRY_MAP[race.eventCountry] || COUNTRY_MAP[race.country];
+    refs.raceFlag.src = `https://flagcdn.com/${code}.svg`;
+    refs.raceFlag.style.display = 'block';
+  } else {
+    refs.raceFlag.style.display = 'none';
+  }
+}
+
+function renderPodium(podium){
+  const byPos = {};
+  (podium||[]).forEach(p=> byPos[p.pos] = p);
+
+  const p1 = byPos[1] || {driver:'—', team:'', nationality:''};
+  const p2 = byPos[2] || {driver:'—', team:'', nationality:''};
+  const p3 = byPos[3] || {driver:'—', team:'', nationality:''};
+
+  refs.driver1.textContent = p1.driver; refs.team1.textContent = p1.team;
+  refs.driver2.textContent = p2.driver; refs.team2.textContent = p2.team;
+  refs.driver3.textContent = p3.driver; refs.team3.textContent = p3.team;
+
+  // apply team colors
+  applyTeamColor(refs.step1, p1.team);
+  applyTeamColor(refs.step2, p2.team);
+  applyTeamColor(refs.step3, p3.team);
+}
+
+function renderStandings(rows){
+  refs.standingsBody.innerHTML = '';
+  const sorted = (rows||[]).slice().sort((a,b)=> (b.points||0) - (a.points||0));
+  sorted.forEach(r=>{
+    const tr = document.createElement('tr');
+    const flag = COUNTRY_MAP[r.nationality] ? 
+      `<img src="https://flagcdn.com/${COUNTRY_MAP[r.nationality]}.svg" width="20" style="height:14px;object-fit:cover;border-radius:3px">` : '';
+    tr.innerHTML = `
+      <td>${r.driver}</td>
+      <td>${r.team}</td>
+      <td><strong>${r.points ?? 0}</strong></td>
+      <td><span class="flag-inline">${flag}<span style="margin-left:6px">${r.nationality || ''}</span></span></td>
+    `;
+    refs.standingsBody.appendChild(tr);
+  });
+}
+
+/* Main loader */
+async function loadAndDisplay(){
+  let state = loadState();
+  const currentSeason = FALLBACK.season;
+
+  if(!state.season || state.season !== currentSeason){
+    const seeded = seedFullStandings(FALLBACK.standings, FALLBACK.grid);
+    state = { season: currentSeason, standings: seeded };
+    saveState(state);
+  }
+
+  refs.seasonLabel.textContent = currentSeason;
+
+  let usedApi = false;
+
+  if(API.enabled){
+    try{
+      const rRes = await fetch(API.endpoints.latestResults(API.season));
+      if(!rRes.ok) throw new Error();
+      const rJson = await rRes.json();
+      const race = (rJson.MRData?.RaceTable?.Races?.[0]) || null;
+      let podium = [];
+      if(race && race.Results){
+        podium = race.Results.slice(0,3).map(res => ({
+          pos: parseInt(res.position),
+          driver: `${res.Driver.givenName} ${res.Driver.familyName}`,
+          team: (res.Constructor?.name) || (res.Constructor?.constructorId) || '',
+          nationality: res.Driver.nationality || ''
+        }));
+      }
+
+      const sRes = await fetch(API.endpoints.driverStandings(API.season));
+      if(!sRes.ok) throw new Error();
+      const sJson = await sRes.json();
+      const standingsList = (sJson.MRData?.StandingsTable?.StandingsLists?.[0]) || null;
+      let standingsRows = [];
+      if(standingsList?.DriverStandings){
+        standingsRows = standingsList.DriverStandings.map(ds => ({
+          driver: `${ds.Driver.givenName} ${ds.Driver.familyName}`,
+          team: (ds.Constructors?.[0]?.name) || '',
+          points: parseFloat(ds.points),
+          nationality: ds.Driver.nationality || ''
+        }));
+      }
+
+      if(podium.length && standingsRows.length){
+        usedApi = true;
+        renderRaceHeader({
+          eventName: race?.raceName || FALLBACK.eventName,
+          date: race?.date || FALLBACK.eventDate,
+          eventCountry: FALLBACK.eventCountry
+        });
+        renderPodium(podium);
+        renderStandings(standingsRows);
+
+        state.standings = seedFullStandings(standingsRows, FALLBACK.grid);
+        state.season = currentSeason;
+        saveState(state);
+
+        refs.dataNote.textContent = 'Live data loaded from Jolpica';
+      } else throw new Error();
+
+    }catch(err){
+      console.warn('API fetch failed — using fallback.', err);
+    }
+  }
+
+  if(!usedApi){
+    renderRaceHeader({
+      eventName: FALLBACK.eventName,
+      date: FALLBACK.eventDate,
+      eventCountry: FALLBACK.eventCountry
+    });
+
+    renderPodium(FALLBACK.podium);
+
+    const seeded = seedFullStandings(state.standings, FALLBACK.grid);
+    renderStandings(seeded);
+
+    refs.dataNote.textContent = 'Using fallback/local data (Jolpica unavailable)';
+  }
+}
+
+/* Button: Reload */
+document.getElementById('btnReload').addEventListener('click', async ()=>{
+  refs.dataNote.textContent = 'Reloading...';
+  await loadAndDisplay();
+});
+
+/* Start */
+loadAndDisplay();
+</script>
+
+</body>
+</html>
